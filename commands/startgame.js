@@ -271,8 +271,10 @@ function createGameEmbed(game) {
     embeds: [
       {
         type: 'rich',
-        color: 0x0f5c842,
-        author: game.name,
+        color: parseInt(0x0f5c842.toString()),
+        author: {
+          name: game.name
+        },
         description: `Jugadores:\n${game.players.map(p => `> - <@${p}>`).join('\n')}`
       }
     ],
@@ -380,8 +382,10 @@ function createVoteEmbed(game, question, finished) {
   let embed =
   {
     type: 'rich',
-    color: 0x0f5c842,
-    author: game.name,
+    color: parseInt(0x0f5c842.toString()),
+    author: {
+      name: game.name
+    },
     description: `${question.prompt}`,
     fields: [
       {
@@ -419,8 +423,10 @@ function votingPhase(interaction, game) {
           embeds: [
             {
               type: 'rich',
-              color: 0xf5c842,
-              author: game.name,
+              color: parseInt(0xf5c842.toString()),
+              author: {
+                name: game.name
+              },
               description: [...game.points].sort((a, b) => b[1] - a[1]).map(p => `<@${p[0]}> - ${p[1]}`).join('\n')
             }
           ]
