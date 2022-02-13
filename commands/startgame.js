@@ -1,0 +1,478 @@
+const { reply, followUp, deleteMsg, update, editReply, modal } = require('../utils')
+const GameModel = require('../schemas/game')
+const ReplayModel = require('../schemas/replay')
+const { content: questions } = require('../assets/QuiplashQuestion.json')
+
+/**
+ * @typedef {import('../typings').Command}
+ */
+let c = {
+  data: {
+    name: 'startgame',
+    description: 'Empezar un juego en el canal actual',
+    options: [
+      {
+        type: 3,
+        name: 'name',
+        required: true,
+        description: 'Nombre de la partida',
+      },
+      // {
+      //   type: 5,
+      //   name: 'familyFriendly',
+      //   description: 'Contenido apto para toda la familia'
+      // },
+      // {
+      //   type: 4,
+      //   name: 'maxMembers',
+      //   required: true,
+      //   description: 'Cantidad máxima de jugadores'
+      // },
+      // {
+      //   type: 4,
+      //   name: 'rounds',
+      //   description: 'Cantidad de rondas'
+      // },
+      // {
+      //   type: 5,
+      //   name: 'spectators',
+      //   description: 'Permitir espectadores'
+      // },
+    ],
+    default_permission: true,
+    type: 1
+  },
+  /**
+  * @param {import('discord-api-types').APIBaseInteraction} interaction
+  * @param {import('express').Response} res
+  * */
+  async execute(interaction, res) {
+    if (!interaction.member) return reply('Los comandos del bot solo se pueden usar en servidores. 🥑', interaction, res)
+
+    let game = await GameModel.findById(interaction.channel_id).lean()
+    if (game) return reply({ content: 'Ya hay un juego en curso', ephemeral: true }, interaction, res)
+
+    game = await new GameModel({
+      _id: interaction.channel_id,
+      name: interaction.data.options.find(o => o.name == 'name').value,
+      players: [interaction.user.id],
+      familyFriendly: false
+    }).save()
+
+    reply(createGameEmbed(game), interaction, res)
+  },
+  components: [
+    {
+      name: 'startgame_startGame',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if (game.players[0] !== interaction.user.id) return reply({ content: 'Solo el creador de la partida puede iniciar el juego', ephemeral: true }, interaction, res)
+        if (game.players.length < 3) return reply({ content: 'Debe haber mínimo 3 jugadores para iniciar', ephemeral: true }, interaction, res)
+        game.phase = 'answers'
+        genQuestions(game)
+        await game.save()
+        let t = 80 * 1000
+        update({
+          ...createGameEmbed(game),
+          content: 'Responde a las preguntas\nTiempo restante: <t:' + Math.floor((Date.now() + t) / 1000) + ':R>',
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  custom_id: 'startgame_showQuestions',
+                  label: 'Mostrar preguntas',
+                  style: 1
+                }
+              ]
+            }
+          ]
+        }, interaction, res)
+        let m = await followUp('Iniciando juego', interaction)
+        setTimeout(() => deleteMsg(m.body, interaction), 5000)
+        for (let i = 5; i >= 0; i--) {
+          setTimeout(async () => {
+            let m = await followUp({
+              content: i == 0 ? 'Se acabó el tiempo' : `${i}`
+            }, interaction)
+            if (i > 0) {
+              setTimeout(() => {
+                deleteMsg(m.body, interaction)
+              }, i * 1000)
+            } else {
+              setTimeout(() => {
+                deleteMsg(m.body, interaction)
+              }, 5000)
+            }
+          }, t - 1000 * i)
+        }
+        setTimeout(() => { votingPhase(interaction, game) }, t)
+      }
+    },
+    {
+      name: 'startgame_joinGame',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if (game.players.includes(interaction.user.id)) return reply({ content: 'Ya estas participando en la partida', ephemeral: true }, interaction, res)
+        game.players.push(interaction.user.id)
+        await game.save()
+
+        update(createGameEmbed(game), interaction, res)
+      }
+    },
+    {
+      name: 'startgame_leaveGame',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en la partida', ephemeral: true }, interaction, res)
+        game.players = game.players.filter(p => p !== interaction.user.id)
+        await game.save()
+
+        update(createGameEmbed(game), interaction, res)
+      }
+    },
+    {
+      name: 'startgame_stopGame',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if (game.players[0] !== interaction.user.id) return reply({ content: 'Solo el creador de la partida puede terminar el juego', ephemeral: true }, interaction, res)
+        await GameModel.deleteOne({ _id: interaction.channel_id })
+        update({
+          content: 'No pos, ya no vamo\' a jugar',
+          embeds: [],
+          components: []
+        }, interaction, res)
+      }
+    },
+    {
+      name: 'startgame_showQuestions',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
+        const questions = game.questions.filter(q => q.users.includes(interaction.user.id) && !q.answers.find(a => a.user == interaction.user.id))
+        if (questions.length) {
+          let inputs = []
+          questions.forEach(q => {
+            inputs.push({
+              type: 4,
+              label: q.prompt,
+              required: true,
+              custom_id: q.prompt,
+              style: 1
+            })
+          })
+          modal({
+            custom_id: 'startgame_answersQuestions',
+            title: 'Quiplash',
+            components: inputs
+          }, interaction, res)
+        } else {
+          reply({
+            content: 'Ya respondiste a todas tus preguntas\n' + game.questions.filter(q => q.users.includes(interaction.user.id)).map(q => q.prompt + '\n> ' + q.answers.find(a => a.user == interaction.user.id).a).join('\n'),
+            ephemeral: true
+          }, interaction, res)
+        }
+      }
+    },
+    {
+      name: 'startgame_vote1',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
+        let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
+        if (q?.votes.find(v => v.user == interaction.user.id)) return reply({ content: 'Ya votaste', ephemeral: true }, interaction, res)
+        if (q.users.includes(interaction.user.id)) return reply({ content: 'No puedes votar por tus propias respuestas', ephemeral: true }, interaction, res)
+        game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 0, user: interaction.user.id })
+        await game.save()
+
+        reply({
+          content: 'Votaste por la respuesta no. 1',
+          ephemeral: true
+        }, interaction, res)
+      }
+    },
+    {
+      name: 'startgame_vote2',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
+        let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
+        if (q?.votes.find(v => v.user == interaction.user.id)) return reply({ content: 'Ya votaste', ephemeral: true }, interaction, res)
+        if (q.users.includes(interaction.user.id)) return reply({ content: 'No puedes votar por tus propias respuestas', ephemeral: true }, interaction, res)
+        game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 1, user: interaction.user.id })
+        await game.save()
+
+        reply({
+          content: 'Votaste por la respuesta no. 2',
+          ephemeral: true
+        }, interaction, res)
+      }
+    }
+  ],
+  modals: [
+    {
+      name: 'startgame_answersQuestions',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if(!game) return reply({ content: 'No hay un juego activo en este canal', ephemeral: true }, interaction, res)
+        if(game.phase !== 'answers') return reply({content: 'Te tardaste demasiado, las respuestas no han sido registradas', ephemeral: true}, interaction, res)
+        interaction.data.components.forEach(c => {
+          game.questions[game.questions.indexOf(c.label)].answers.push({ user: interaction.user.id, a: c.value })
+        })
+        await game.save()
+        reply({
+          content: 'Respuestas registradas',
+          ephemeral: true
+        }, interaction, res)
+      }
+    }
+  ]
+}
+
+module.exports = c
+
+
+function createGameEmbed(game) {
+  return {
+    content: 'Esperando a más jugadores...',
+    embeds: [
+      {
+        type: 'rich',
+        color: 0x0f5c842,
+        author: game.name,
+        description: `Jugadores:\n${game.players.map(p => `> - <@${p}>`).join('\n')}`
+      }
+    ],
+    components: [
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            custom_id: 'startgame_startGame',
+            label: 'Iniciar',
+            style: 3
+          },
+          {
+            type: 2,
+            custom_id: 'startgame_joinGame',
+            label: 'Unirse',
+            style: 1
+          }
+        ]
+      },
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            custom_id: 'startgame_leaveGame',
+            label: 'Salir',
+            style: 4
+          },
+          {
+            type: 2,
+            custom_id: 'startgame_stopGame',
+            label: 'Terminar',
+            style: 4
+          }
+        ]
+      }
+    ]
+  }
+}
+
+function genQuestions(game) {
+  let players = game.players
+  let genQuestion = () => questions[Math.floor(Math.random() * questions.length)]
+  for (let player of players) {
+    if (game.questions.filter(q => q.users.includes(player)).length >= 2) continue
+    let avPlayers = players.filter(p => p != player)
+    let question1 = genQuestion()
+    while (game.questions.find(q => q.id == question1.id)) {
+      question1 = genQuestion()
+    }
+    let rival1N = Math.floor(Math.random() * avPlayers.length)
+    let rival1 = avPlayers[rival1N]
+    avPlayers.splice(rival1N, 1)
+    let question2 = genQuestion()
+    while (game.questions.find(q => q.id == question2.id)) {
+      question2 = genQuestion()
+    }
+    let rival2N = Math.floor(Math.random() * avPlayers.length)
+    let rival2 = avPlayers[rival2N]
+    avPlayers.splice(rival2N, 1)
+    game.questions.push({ ...question1, users: [player, rival1] }, { ...question2, users: [player, rival2] })
+  }
+}
+
+function createVoteEmbed(game, question, finished) {
+  let a1 = question.answers[0]
+  let a2 = question.answers[1]
+  let va1 = question.votes.filter(v => v.answer == 0)
+  let va2 = question.votes.filter(v => v.answer == 1)
+  let u1 = a1?.user || question.users.find(u => u != a2?.user)
+  let u2 = a2?.user || question.users.find(u => u != u1)
+  console.log(game.points)
+  if (finished) {
+    let p1 = game.points.get(u1)
+    let p2 = game.points.get(u2)
+    if (va1.length > va2.length) {
+      if (p1) {
+        game.points.set(u1, p1 + Math.floor((5000 / game.players.length) * va1.length))
+      } else {
+        game.points.set(Math.floor((5000 / game.players.length) * va1.length))
+      }
+    } else if (va2.length > va1.length) {
+      if (p2) {
+        game.points.set(u2, p2 + Math.floor((5000 / game.players.length) * va2.length))
+      } else {
+        game.points.set(u2, Math.floor((5000 / game.players.length) * va2.length))
+      }
+    } else if (va1 == va2) {
+      if (p1) {
+        game.points.set(u1, p1 + Math.floor((5000 / game.players.length) * va1.length))
+      } else {
+        game.points.set(u1, Math.floor((5000 / game.players.length) * va1.length))
+      }
+      if (p2) {
+        game.points.set(u2, p2 + Math.floor((5000 / game.players.length) * va2.length))
+      } else {
+        game.points.set(u2, Math.floor((5000 / game.players.length) * va2.length))
+      }
+      game.markModified('points')
+      game.save()
+    }
+  }
+  let embed =
+  {
+    type: 'rich',
+    color: 0x0f5c842,
+    author: game.name,
+    description: `${question.prompt}`,
+    fields: [
+      {
+        name: '1.- ' + (a1?.a || 'Sin respuesta'),
+        value: finished ? `<@${u1}>\nVotes: ${va1.length}${va1.length > va2.length ? '  **Ganador**' : ''}\n${va1.map(v => '<@' + v.user + '>')}${finished ? '\nPuntos: ' + (game.points[u1] ?? 0) : ''}` : '\u200b'
+      },
+      {
+        name: '2.- ' + (a2?.a || 'Sin respuesta'),
+        value: finished ? `<@${u2}>\nVotes: ${va2.length}${va2.length > va1.length ? '  **Ganador**' : ''}\n${va2.map(v => '<@' + v.user + '>')}${finished ? '\nPuntos: ' + (game.points[u2] ?? 0) : ''}` : '\u200b'
+      }
+    ]
+  }
+  if (va1 == va2 && finished) {
+    embed.fields.push({name: 'Empate!', value: '\u200b'})
+  }
+  return embed
+}
+
+/**
+ * 
+ * @param {import('discord-api-types').APIBaseInteraction} interaction 
+ * @param {*} game 
+ * @returns 
+ */
+function votingPhase(interaction, game) {
+  game.phase = 'vote'
+  game.save()
+  for (let i = 0; i <= game.questions.length * 2; i++) {
+    let question = game.questions[Math.floor(i / 2)]
+    if (!question) {
+      setTimeout(async () => {
+        console.log([...game.points].sort((a, b) => b[1] - a[1]))
+        editReply({
+          content: 'Juego finalizado',
+          embeds: [
+            {
+              type: 'rich',
+              color: 0xf5c842,
+              author: game.name,
+              description: [...game.points].sort((a, b) => b[1] - a[1]).map(p => `<@${p[0]}> - ${p[1]}`).join('\n')
+            }
+          ]
+        }, interaction)
+        let m = await followUp('Juego finalizado', interaction)
+        setTimeout(() => deleteMsg(m.body, interaction), 5000)
+        game.phase = 'ended'
+        new ReplayModel({ ...game._doc, _id: interaction.message.id }).save()
+        game.deleteOne()
+        GameModel.deleteOne({ _id: interaction.channel_id })
+      }, i * 30 * 1000)
+      return 'xd'
+    }
+    setTimeout(async () => {
+      game = await GameModel.findById(interaction.channel_id)
+      editReply({
+        content: 'Fase de votación, vota por la frase que te parezca más graciosa',
+        embeds: [createVoteEmbed(game, game.questions[Math.floor(i / 2)], i % 2 == 1)],
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                custom_id: 'startgame_vote1',
+                label: 'Votar 1',
+                style: 1,
+                disabled: i % 2 == 1
+              },
+              {
+                type: 2,
+                custom_id: 'startgame_vote2',
+                label: 'Votar 2',
+                style: 1,
+                disabled: i % 2 == 1
+              }
+            ]
+          }
+        ]
+      }, interaction)
+      if (i % 2 == 1) {
+        let m = await followUp({
+          content: 'Resultados de las votaciones, tienen 30 segundos'
+        }, interaction)
+        setTimeout(() => deleteMsg(m.body, interaction), 10000)
+      } else {
+        let m = await followUp({
+          content: 'Hora de votar, tienen 30 segundos'
+        }, interaction)
+        setTimeout(() => deleteMsg(m.body, interaction), 10000)
+      }
+    }, i * 30 * 1000)
+  }
+  return 'xd'
+}
