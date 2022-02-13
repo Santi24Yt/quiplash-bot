@@ -70,7 +70,7 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el creador de la partida puede iniciar el juego', flags: 1 << 6 }, interaction, res)
+        if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el anfitrión de la partida puede iniciar el juego', flags: 1 << 6 }, interaction, res)
         if (game.players.length < 3) return reply({ content: 'Debe haber mínimo 3 jugadores para iniciar', flags: 1 << 6 }, interaction, res)
         game.phase = 'answers'
         genQuestions(game)
@@ -152,7 +152,7 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el creador de la partida puede terminar el juego', flags: 1 << 6 }, interaction, res)
+        if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el anfitrión de la partida puede terminar el juego', flags: 1 << 6 }, interaction, res)
         await GameModel.deleteOne({ _id: interaction.channel_id })
         update({
           content: 'No pos, ya no vamo\' a jugar',
@@ -185,7 +185,12 @@ let c = {
           modal({
             custom_id: 'startgame_answersQuestions',
             title: 'Quiplash',
-            components: inputs
+            components: [
+              {
+                type: 1,
+                components: inputs
+              }
+            ]
           }, interaction, res)
         } else {
           reply({
