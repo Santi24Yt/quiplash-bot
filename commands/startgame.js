@@ -55,7 +55,7 @@ let c = {
     game = await new GameModel({
       _id: interaction.channel_id,
       name: interaction.data.options.find(o => o.name == 'name').value,
-      players: [interaction.user.id],
+      players: [(interaction.user?.id ?? interaction.member?.user.id)],
       familyFriendly: false
     }).save()
 
@@ -70,7 +70,7 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (game.players[0] !== interaction.user.id) return reply({ content: 'Solo el creador de la partida puede iniciar el juego', ephemeral: true }, interaction, res)
+        if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el creador de la partida puede iniciar el juego', ephemeral: true }, interaction, res)
         if (game.players.length < 3) return reply({ content: 'Debe haber mínimo 3 jugadores para iniciar', ephemeral: true }, interaction, res)
         game.phase = 'answers'
         genQuestions(game)
@@ -122,8 +122,8 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (game.players.includes(interaction.user.id)) return reply({ content: 'Ya estas participando en la partida', ephemeral: true }, interaction, res)
-        game.players.push(interaction.user.id)
+        if (game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya estas participando en la partida', ephemeral: true }, interaction, res)
+        game.players.push((interaction.user?.id ?? interaction.member?.user.id))
         await game.save()
 
         update(createGameEmbed(game), interaction, res)
@@ -137,8 +137,8 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en la partida', ephemeral: true }, interaction, res)
-        game.players = game.players.filter(p => p !== interaction.user.id)
+        if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en la partida', ephemeral: true }, interaction, res)
+        game.players = game.players.filter(p => p !== (interaction.user?.id ?? interaction.member?.user.id))
         await game.save()
 
         update(createGameEmbed(game), interaction, res)
@@ -152,7 +152,7 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (game.players[0] !== interaction.user.id) return reply({ content: 'Solo el creador de la partida puede terminar el juego', ephemeral: true }, interaction, res)
+        if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el creador de la partida puede terminar el juego', ephemeral: true }, interaction, res)
         await GameModel.deleteOne({ _id: interaction.channel_id })
         update({
           content: 'No pos, ya no vamo\' a jugar',
@@ -169,8 +169,8 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
-        const questions = game.questions.filter(q => q.users.includes(interaction.user.id) && !q.answers.find(a => a.user == interaction.user.id))
+        if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
+        const questions = game.questions.filter(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
         if (questions.length) {
           let inputs = []
           questions.forEach(q => {
@@ -189,7 +189,7 @@ let c = {
           }, interaction, res)
         } else {
           reply({
-            content: 'Ya respondiste a todas tus preguntas\n' + game.questions.filter(q => q.users.includes(interaction.user.id)).map(q => q.prompt + '\n> ' + q.answers.find(a => a.user == interaction.user.id).a).join('\n'),
+            content: 'Ya respondiste a todas tus preguntas\n' + game.questions.filter(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id))).map(q => q.prompt + '\n> ' + q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)).a).join('\n'),
             ephemeral: true
           }, interaction, res)
         }
@@ -203,11 +203,11 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
+        if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
         let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
-        if (q?.votes.find(v => v.user == interaction.user.id)) return reply({ content: 'Ya votaste', ephemeral: true }, interaction, res)
-        if (q.users.includes(interaction.user.id)) return reply({ content: 'No puedes votar por tus propias respuestas', ephemeral: true }, interaction, res)
-        game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 0, user: interaction.user.id })
+        if (q?.votes.find(v => v.user == (interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya votaste', ephemeral: true }, interaction, res)
+        if (q.users.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No puedes votar por tus propias respuestas', ephemeral: true }, interaction, res)
+        game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 0, user: (interaction.user?.id ?? interaction.member?.user.id) })
         await game.save()
 
         reply({
@@ -224,11 +224,11 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (!game.players.includes(interaction.user.id)) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
+        if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', ephemeral: true }, interaction, res)
         let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
-        if (q?.votes.find(v => v.user == interaction.user.id)) return reply({ content: 'Ya votaste', ephemeral: true }, interaction, res)
-        if (q.users.includes(interaction.user.id)) return reply({ content: 'No puedes votar por tus propias respuestas', ephemeral: true }, interaction, res)
-        game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 1, user: interaction.user.id })
+        if (q?.votes.find(v => v.user == (interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya votaste', ephemeral: true }, interaction, res)
+        if (q.users.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No puedes votar por tus propias respuestas', ephemeral: true }, interaction, res)
+        game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 1, user: (interaction.user?.id ?? interaction.member?.user.id) })
         await game.save()
 
         reply({
@@ -250,7 +250,7 @@ let c = {
         if(!game) return reply({ content: 'No hay un juego activo en este canal', ephemeral: true }, interaction, res)
         if(game.phase !== 'answers') return reply({content: 'Te tardaste demasiado, las respuestas no han sido registradas', ephemeral: true}, interaction, res)
         interaction.data.components.forEach(c => {
-          game.questions[game.questions.indexOf(c.label)].answers.push({ user: interaction.user.id, a: c.value })
+          game.questions[game.questions.indexOf(c.label)].answers.push({ user: (interaction.user?.id ?? interaction.member?.user.id), a: c.value })
         })
         await game.save()
         reply({
