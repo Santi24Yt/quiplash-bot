@@ -44,7 +44,7 @@ const port = process.env.PORT || 3000
 
 app.use(express.json())
 
-app.get('/api/interactions', (req, res) => {
+app.post('/api/interactions', (req, res) => {
   const PUBLIC_KEY = process.env.PUBLIC_KEY
   const signature = req.get('X-Signature-Ed25519')
   const timestamp = req.get('X-Signature-Timestamp')
