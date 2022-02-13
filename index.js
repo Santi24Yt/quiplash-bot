@@ -59,7 +59,7 @@ app.post('/api/interactions', (req, res) => {
 
   if (!isVerified) return res.status(401).end('Invalid request signature')
 
-  switch (req.body.interaction.type) {
+  switch (req.body.type) {
   //Ping
   case 1:
     res.status(200).json({ type: 1 })
@@ -67,12 +67,12 @@ app.post('/api/interactions', (req, res) => {
 
     //Application Command
   case 2:
-    commands.get(req.body.interaction.data.name).execute(req.body.interaction, res)
+    commands.get(req.body.data.name).execute(req.body, res)
     break
 
     //Message Component
   case 3:
-    components.get(req.body.interaction.data.custom_id).execute(req.body.interaction, res)
+    components.get(req.body.data.custom_id).execute(req.body, res)
     break
 
     //Application Command Autocomplete
@@ -81,7 +81,7 @@ app.post('/api/interactions', (req, res) => {
 
     //Modal Submit
   case 5:
-    modals.get(req.body.interaction.data.custom_id).execute(req.body.interaction, res)
+    modals.get(req.body.data.custom_id).execute(req.body, res)
     break
 
   default:
