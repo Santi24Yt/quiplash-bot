@@ -85,8 +85,8 @@ let c = {
               components: [
                 {
                   type: 2,
-                  custom_id: 'startgame_showQuestions',
-                  label: 'Mostrar preguntas',
+                  custom_id: 'startgame_showQuestion',
+                  label: 'Mostrar pregunta',
                   style: 1
                 }
               ]
@@ -162,7 +162,7 @@ let c = {
       }
     },
     {
-      name: 'startgame_showQuestions',
+      name: 'startgame_showQuestion',
       /**
       * @param {import('discord-api-types').APIBaseInteraction} interaction
       * @param {import('express').Response} res
@@ -170,25 +170,22 @@ let c = {
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
         if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', flags: 1 << 6 }, interaction, res)
-        const questions = game.questions.filter(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
-        if (questions.length) {
-          let inputs = []
-          questions.forEach(q => {
-            inputs.push({
-              type: 4,
-              label: q.prompt,
-              required: true,
-              custom_id: q.prompt,
-              style: 1
-            })
-          })
-          modal({
-            custom_id: 'startgame_answersQuestions',
-            title: 'Quiplash',
+        const question = game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
+        if (question) {
+          reply({
+            content: question.prompt,
+            flags: 1 << 6,
             components: [
               {
                 type: 1,
-                components: inputs
+                components: [
+                  {
+                    type: 2,
+                    custom_id: 'startgame_answerQuestion',
+                    label: 'Responder',
+                    style: 1
+                  }
+                ]
               }
             ]
           }, interaction, res)
@@ -241,11 +238,9 @@ let c = {
           flags: 1 << 6
         }, interaction, res)
       }
-    }
-  ],
-  modals: [
+    },
     {
-      name: 'startgame_answersQuestions',
+      name: 'startgame_answerQuestion',
       /**
       * @param {import('discord-api-types').APIBaseInteraction} interaction
       * @param {import('express').Response} res
@@ -253,14 +248,63 @@ let c = {
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
         if(!game) return reply({ content: 'No hay un juego activo en este canal', flags: 1 << 6 }, interaction, res)
-        if(game.phase !== 'answers') return reply({content: 'Te tardaste demasiado, las respuestas no han sido registradas', flags: 1 << 6}, interaction, res)
-        interaction.data.components.forEach(c => {
-          game.questions[game.questions.indexOf(c.label)].answers.push({ user: (interaction.user?.id ?? interaction.member?.user.id), a: c.value })
-        })
+        if(game.phase !== 'answers') return reply({content: 'Te tardaste demasiado, las ya no puedes responder a las preguntas', flags: 1 << 6}, interaction, res)
+        const question = game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
+        if(!question) return reply({
+          content: 'Ya respondiste a todas tus preguntas\n' + game.questions.filter(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id))).map(q => q.prompt + '\n> ' + q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)).a).join('\n'),
+          flags: 1 << 6
+        }, interaction, res)
+        modal({
+          custom_id: 'startgame_submitQuestion',
+          title: question.prompt.slice(0, 25),
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 4,
+                  label: question.prompt.slice(25, 70),
+                  placeholder: question.prompt.length > 70 ? question.prompt.slice(70) : 'Respuesta',
+                  style: 1,
+                  custom_id: 'xd'
+                }
+              ]
+            }
+          ]
+        }, interaction, res)
+      }
+    }
+  ],
+  modals: [
+    {
+      name: 'startgame_submitQuestion',
+      /**
+      * @param {import('discord-api-types').APIBaseInteraction} interaction
+      * @param {import('express').Response} res
+      * */
+      async execute(interaction, res) {
+        const game = await GameModel.findById(interaction.channel_id)
+        if(!game) return reply({ content: 'No hay un juego activo en este canal', flags: 1 << 6 }, interaction, res)
+        if(game.phase !== 'answers') return reply({content: 'Te tardaste demasiado, las ya no puedes responder a las preguntas', flags: 1 << 6}, interaction, res)
+        const question = game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
+        game.questions[game.questions.indexOf(question)].answers.push({a: interaction.data.components[0].components[0].value, user: (interaction.user?.id ?? interaction.member?.user.id)})
         await game.save()
         reply({
-          content: 'Respuestas registradas',
-          flags: 1 << 6
+          content: 'Respuesta registrada correctamente',
+          flags: 1 << 6,
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  custom_id: 'startgame_showQuestion',
+                  label: 'Mostrar pregunta',
+                  style: 1
+                }
+              ]
+            }
+          ]
         }, interaction, res)
       }
     }
