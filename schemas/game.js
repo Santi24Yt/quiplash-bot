@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require('mongoose')
 
 module.exports = mongoose.model('game', new mongoose.Schema({
   _id: String,
@@ -14,5 +14,5 @@ module.exports = mongoose.model('game', new mongoose.Schema({
     votes: [{answer: Number, user: String}]
   }],
   phase: { type: String, default: 'lobby' },
-  points: { type: Map, of: Number}
+  points: { type: Map, of: Number, default: new Map() }
 }))
