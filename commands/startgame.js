@@ -208,7 +208,7 @@ let c = {
         if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', flags: 1 << 6 }, interaction, res)
         let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
         if (q?.votes.find(v => v.user == (interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya votaste', flags: 1 << 6 }, interaction, res)
-        if (q.users.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No puedes votar por tus propias respuestas', flags: 1 << 6 }, interaction, res)
+        if (q.users.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No puedes votar en la ronda en la que se incluye tu respuesta', flags: 1 << 6 }, interaction, res)
         game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 0, user: (interaction.user?.id ?? interaction.member?.user.id) })
         await game.save()
 
@@ -229,7 +229,7 @@ let c = {
         if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', flags: 1 << 6 }, interaction, res)
         let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
         if (q?.votes.find(v => v.user == (interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya votaste', flags: 1 << 6 }, interaction, res)
-        if (q.users.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No puedes votar por tus propias respuestas', flags: 1 << 6 }, interaction, res)
+        if (q.users.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No puedes votar en la ronda en la que se incluye tu respuesta', flags: 1 << 6 }, interaction, res)
         game.questions.find(q => q.prompt == interaction.message.embeds[0].description)?.votes.push({ answer: 1, user: (interaction.user?.id ?? interaction.member?.user.id) })
         await game.save()
 
@@ -300,7 +300,8 @@ let c = {
                   type: 2,
                   custom_id: 'startgame_showQuestion',
                   label: 'Mostrar pregunta',
-                  style: 1
+                  style: 1,
+                  disabled: !!(game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id))))
                 }
               ]
             }
@@ -405,7 +406,7 @@ function createVoteEmbed(game, question, finished) {
       if (p1) {
         game.points.set(u1, p1 + Math.floor((5000 / game.players.length) * va1.length))
       } else {
-        game.points.set(Math.floor((5000 / game.players.length) * va1.length))
+        game.points.set(u1, Math.floor((5000 / game.players.length) * va1.length))
       }
     } else if (va2.length > va1.length) {
       if (p2) {
