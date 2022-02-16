@@ -152,10 +152,17 @@ function modal(modal, interaction, res) {
  * @param {any} message
  * @param {import('discord-api-types').APIBaseInteraction} interaction
  * */
-function deleteMsg(message, interaction) {
-  c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.id}/messages/${message.id}`, 'DELETE')
+async function deleteMsg(message, interaction) {
+  let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/${message.id ?? '@original'}`, 'DELETE')
     .header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`)
     .send()
+  let data = await r.json()
+  if(data?.retry_after)
+  {
+    setTimeout(() => {
+      deleteMsg(message, interaction)
+    }, (data.retry_after*1000)+10)
+  }
 }
 
 module.exports = {

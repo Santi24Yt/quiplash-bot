@@ -301,7 +301,7 @@ let c = {
                   custom_id: 'startgame_showQuestion',
                   label: 'Mostrar pregunta',
                   style: 1,
-                  disabled: !!(game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id))))
+                  disabled: !(game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id))))
                 }
               ]
             }
