@@ -400,30 +400,30 @@ function createVoteEmbed(game, question, finished) {
   let u2 = a2?.user || question.users.find(u => u != u1)
   console.log(game.points)
   if (finished) {
-    let p1 = game.points.get(u1)
-    let p2 = game.points.get(u2)
+    let p1 = game.points.find(p => p._id == u1)
+    let p2 = game.points.find(p => p._id == u2)
     if (va1.length > va2.length) {
       if (p1) {
-        game.points.set(u1, p1 + Math.floor((5000 / game.players.length) * va1.length))
+        game.points.push({_id: u1, points: p1 + Math.floor((5000 / game.players.length) * va1.length)})
       } else {
-        game.points.set(u1, Math.floor((5000 / game.players.length) * va1.length))
+        game.points.push({_id: u1, points: Math.floor((5000 / game.players.length) * va1.length)})
       }
     } else if (va2.length > va1.length) {
       if (p2) {
-        game.points.set(u2, p2 + Math.floor((5000 / game.players.length) * va2.length))
+        game.points.push({_id: u2, points: p2 + Math.floor((5000 / game.players.length) * va2.length)})
       } else {
-        game.points.set(u2, Math.floor((5000 / game.players.length) * va2.length))
+        game.points.push({_id: u2, points: Math.floor((5000 / game.players.length) * va2.length)})
       }
     } else if (va1 == va2) {
       if (p1) {
-        game.points.set(u1, p1 + Math.floor((5000 / game.players.length) * va1.length))
+        game.points.push({_id: u1, points: p1 + Math.floor((5000 / game.players.length) * va1.length)})
       } else {
-        game.points.set(u1, Math.floor((5000 / game.players.length) * va1.length))
+        game.points.push({_id: u1, points: Math.floor((5000 / game.players.length) * va1.length)})
       }
       if (p2) {
-        game.points.set(u2, p2 + Math.floor((5000 / game.players.length) * va2.length))
+        game.points.push({_id: u2, points: p2 + Math.floor((5000 / game.players.length) * va2.length)})
       } else {
-        game.points.set(u2, Math.floor((5000 / game.players.length) * va2.length))
+        game.points.push({_id: u2, points: Math.floor((5000 / game.players.length) * va2.length)})
       }
       game.markModified('points')
       game.save()
@@ -467,7 +467,7 @@ function votingPhase(interaction, game) {
     let question = game.questions[Math.floor(i / 2)]
     if (!question) {
       setTimeout(async () => {
-        console.log([...game.points].sort((a, b) => b[1] - a[1]))
+        console.log(game.points.sort((a, b) => b.points - a.points))
         editReply({
           content: 'Juego finalizado',
           embeds: [
@@ -477,7 +477,7 @@ function votingPhase(interaction, game) {
               author: {
                 name: game.name
               },
-              description: [...game.points].sort((a, b) => b[1] - a[1]).map(p => `<@${p[0]}> - ${p[1]}`).join('\n')
+              description: game.points.sort((a, b) => b.points - a.points).map(p => `<@${p[0]}> - ${p[1]}`).join('\n')
             }
           ]
         }, interaction)
