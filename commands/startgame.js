@@ -66,7 +66,7 @@ let c = {
       ...createGameEmbed(game),
       files: [{
         name: 'menu.png',
-        buffer: menu(game.name, game.players, game.familyFriendly)
+        buffer: await menu(game.name, game.players, game.familyFriendly)
       }]
     }, interaction, res)
   },
@@ -565,7 +565,7 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
   const avatars = []
   for(const player of players)
   {
-    const r = await centra(`https://discord.com/api/v9/users/${player}`).send()
+    const r = await centra(`https://discord.com/api/v9/users/${player}`).header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`).send()
     const user = await r.json()
     avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=${radius-2}`).send()).body)
   }
@@ -574,9 +574,9 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
     const x = ref_radius+ref_x+ref_radius*cos(rad(angle*i+offset_angle))
     const y = ref_y+ref_radius*sin(rad(angle*i+offset_angle))
     elements.drawCircle(x, y, radius, Image.rgbToColor(217, 135, 0))
-    elements.composite(await (await Image.decode(avatars[i])).cropCircle(), x, y)
+    if(avatars[i]) elements.composite((await Image.decode(avatars[i])).cropCircle(), x, y)
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
   bg.composite(elements)
-  return await bg.encode()
+  return bg.encode()
 }
