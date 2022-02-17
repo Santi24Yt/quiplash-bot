@@ -2,6 +2,9 @@ const { reply, followUp, deleteMsg, update, editReply, modal } = require('../uti
 const GameModel = require('../schemas/game')
 const ReplayModel = require('../schemas/replay')
 const { content: questions } = require('../assets/QuiplashQuestion.json')
+const fs = require('fs')
+const { Image } = require('imagescript')
+const centra = require('centra')
 
 /**
  * @typedef {import('../typings').Command}
@@ -59,7 +62,13 @@ let c = {
       familyFriendly: false
     }).save()
 
-    reply(createGameEmbed(game), interaction, res)
+    reply({
+      ...createGameEmbed(game),
+      files: [{
+        name: 'menu.png',
+        buffer: menu(game.name, game.players, game.familyFriendly)
+      }]
+    }, interaction, res)
   },
   components: [
     {
@@ -531,4 +540,43 @@ function votingPhase(interaction, game) {
     }, i * 30 * 1000)
   }
   return 'xd'
+}
+
+/**
+ * @type {Image}
+ */
+let bg;
+(async () => {
+  bg = await Image.decode(fs.readFileSync('../assets/bg.jpeg'))
+})()
+
+const { sin, cos, floor, min } = Math
+const rad = (d) => (d*Math.PI)/180.0
+
+async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, extra={}) {
+  const elements = new Image(bg.width, bg.height)
+  const offset_x = extra.offset_x ?? 70, offset_y = extra.offset_y ?? 10
+  const ref_x = bg.width/2 + offset_x, ref_y = bg.height/2 + offset_y
+  const ref_radius = extra.ref_radius ?? bg.width/6
+  const angle = 360/maxMembers, offset_angle = extra.offset_angle ?? 90
+  const radius = floor(min((extra.radius ?? 30), sin(rad(angle/2))*ref_radius))
+  const font = fs.readFileSync('../assets/font.ttf')
+  const name = await Image.renderText(font, 36, title, Image.rgbToColor(0, 0, 0))
+  const avatars = []
+  for(const player of players)
+  {
+    const r = await centra(`https://discord.com/api/v9/users/${player}`).send()
+    const user = await r.json()
+    avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=${radius-2}`).send()).body)
+  }
+  for(let i = 0; i < maxMembers; i++)
+  {
+    const x = ref_radius+ref_x+ref_radius*cos(rad(angle*i+offset_angle))
+    const y = ref_y+ref_radius*sin(rad(angle*i+offset_angle))
+    elements.drawCircle(x, y, radius, Image.rgbToColor(217, 135, 0))
+    elements.composite(await (await Image.decode(avatars[i])).cropCircle(), x, y)
+  }
+  elements.composite(name, bg.width/2-name.width/2, -5)
+  bg.composite(elements)
+  return bg.encode()
 }

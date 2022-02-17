@@ -15,6 +15,7 @@
     "dotenv": "^10.0.0",
     "express": "^4.17.2",
     "form-data": "^4.0.0",
+    "imagescript": "github:matmen/ImageScript",
     "mongoose": "^6.0.12",
     "tweetnacl": "^1.0.3"
   },
