@@ -578,5 +578,5 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
   bg.composite(elements)
-  return bg.encode()
+  return await bg.encode()
 }

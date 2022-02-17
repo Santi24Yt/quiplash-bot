@@ -1,5 +1,6 @@
 const FormData = require('form-data')
 const c = require('centra')
+const { Readable } = require('stream')
 
 const apiVersion = process.env.DISCORD_API_VERSION || 9
 const base = `https://discord.com/api/v${apiVersion}`
@@ -20,9 +21,10 @@ function reply(reply, interaction, res) {
   {
     let form = new FormData()
     reply.files.forEach((f, i) => {
-      form.append(i, f.buffer, {filename: f.name})
+      form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
-    form.append('payload-json', JSON.stringify(reply.data))
+    delete reply.files
+    form.append('payload-json', JSON.stringify(reply.data ?? reply))
     return res.header(form.getHeaders()).send(form)
   }
   res.status(200).json({
@@ -51,9 +53,10 @@ async function followUp(message, interaction) {
   {
     let form = new FormData()
     message.files.forEach((f, i) => {
-      form.append(i, f.buffer, {filename: f.name})
+      form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
-    form.append('payload-json', JSON.stringify(message.data))
+    delete message.files
+    form.append('payload-json', JSON.stringify(message.data ?? message))
     let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}`, 'POST')
       .header(form.getHeaders())
       .header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`)
@@ -89,9 +92,10 @@ function update(message, interaction, res) {
   {
     let form = new FormData()
     message.files.forEach((f, i) => {
-      form.append(i, f.buffer, {filename: f.name})
+      form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
-    form.append('payload-json', JSON.stringify(message.data))
+    delete message.files
+    form.append('payload-json', JSON.stringify(message.data ?? message))
     return res.header(form.getHeaders()).send(form)
   }
   res.status(200).json({
@@ -119,9 +123,10 @@ async function editReply(message, interaction) {
   {
     let form = new FormData()
     message.files.forEach((f, i) => {
-      form.append(i, f.buffer, {filename: f.name})
+      form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
-    form.append('payload-json', JSON.stringify(message.data))
+    delete message.files
+    form.append('payload-json', JSON.stringify(message.data ?? message))
     let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/@original`, 'PATCH')
       .header(form.getHeaders())
       .header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`)
