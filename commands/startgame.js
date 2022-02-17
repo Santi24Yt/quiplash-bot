@@ -547,7 +547,7 @@ function votingPhase(interaction, game) {
  */
 let bg;
 (async () => {
-  bg = await Image.decode(fs.readFileSync('../assets/bg.jpeg'))
+  bg = await Image.decode(fs.readFileSync('./assets/bg.jpeg'))
 })()
 
 const { sin, cos, floor, min } = Math
@@ -560,7 +560,7 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
   const ref_radius = extra.ref_radius ?? bg.width/6
   const angle = 360/maxMembers, offset_angle = extra.offset_angle ?? 90
   const radius = floor(min((extra.radius ?? 30), sin(rad(angle/2))*ref_radius))
-  const font = fs.readFileSync('../assets/font.ttf')
+  const font = fs.readFileSync('./assets/font.ttf')
   const name = await Image.renderText(font, 36, title, Image.rgbToColor(0, 0, 0))
   const avatars = []
   for(const player of players)
