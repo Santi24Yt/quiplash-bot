@@ -19,13 +19,16 @@ function reply(reply, interaction, res) {
   })
   if(reply.files?.length)
   {
+    res.status(200).json({
+      type: 5
+    })
     let form = new FormData()
     reply.files.forEach((f, i) => {
       form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
     delete reply.files
-    form.append('payload-json', JSON.stringify(reply.data ?? reply))
-    return res.header(form.getHeaders()).send(form)
+    form.append('payload_json', JSON.stringify(reply.data ?? reply))
+    return form.submit({method: 'PATCH', host: 'discord.com', path: `/api/v${apiVersion}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/@original`, protocol: 'https:'})
   }
   res.status(200).json({
     type: 4,
@@ -56,7 +59,7 @@ async function followUp(message, interaction) {
       form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
     delete message.files
-    form.append('payload-json', JSON.stringify(message.data ?? message))
+    form.append('payload_json', JSON.stringify(message.data ?? message))
     let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}`, 'POST')
       .header(form.getHeaders())
       .header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`)
@@ -95,7 +98,7 @@ function update(message, interaction, res) {
       form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
     delete message.files
-    form.append('payload-json', JSON.stringify(message.data ?? message))
+    form.append('payload_json', JSON.stringify(message.data ?? message))
     return res.header(form.getHeaders()).send(form)
   }
   res.status(200).json({
@@ -126,7 +129,7 @@ async function editReply(message, interaction) {
       form.append(i, Readable.from(f.buffer), {filename: f.name})
     })
     delete message.files
-    form.append('payload-json', JSON.stringify(message.data ?? message))
+    form.append('payload_json', JSON.stringify(message.data ?? message))
     let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/@original`, 'PATCH')
       .header(form.getHeaders())
       .header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`)
