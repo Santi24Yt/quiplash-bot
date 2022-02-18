@@ -554,18 +554,13 @@ function votingPhase(interaction, game) {
   return 'xd'
 }
 
-/**
- * @type {Image}
- */
-let bg;
-(async () => {
-  bg = await Image.decode(fs.readFileSync('./assets/bg.jpeg'))
-})()
+let bgRaw = fs.readFileSync('./assets/bg.jpeg')
 
 const { sin, cos, floor, min } = Math
 const rad = (d) => (d*Math.PI)/180.0
 
 async function menu(title, players, familyFriendly, maxMembers=8, spectators=0, extra={}) {
+  const bg = await Image.decode(bgRaw)
   const elements = new Image(bg.width, bg.height)
   const offset_x = extra.offset_x ?? 70, offset_y = extra.offset_y ?? 10
   const ref_x = bg.width/2 + offset_x, ref_y = bg.height/2 + offset_y
