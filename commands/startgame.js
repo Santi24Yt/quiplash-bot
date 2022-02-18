@@ -567,14 +567,14 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
   {
     const r = await centra(`https://discord.com/api/v9/users/${player}`).header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`).send()
     const user = await r.json()
-    avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=${radius-2}`).send()).body)
+    avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`).send()).body)
   }
   for(let i = 0; i < maxMembers; i++)
   {
     const x = ref_radius+ref_x+ref_radius*cos(rad(angle*i+offset_angle))
     const y = ref_y+ref_radius*sin(rad(angle*i+offset_angle))
-    elements.drawCircle(x, y, radius, Image.rgbToColor(217, 135, 0))
-    if(avatars[i]) elements.composite((await Image.decode(avatars[i])).cropCircle(), x, y)
+    elements.drawCircle(floor(x), floor(y), radius, Image.rgbToColor(217, 135, 0))
+    if(avatars[i]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2),  floor(radius*2)).cropCircle(), floor(x), floor(y))
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
   bg.composite(elements)
