@@ -20,27 +20,26 @@ let c = {
         required: true,
         description: 'Nombre de la partida',
       },
-      // {
-      //   type: 5,
-      //   name: 'familyFriendly',
-      //   description: 'Contenido apto para toda la familia'
-      // },
-      // {
-      //   type: 4,
-      //   name: 'maxMembers',
-      //   required: true,
-      //   description: 'Cantidad máxima de jugadores'
-      // },
+      {
+        type: 5,
+        name: 'familyFriendly',
+        description: 'Contenido apto para toda la familia'
+      },
+      {
+        type: 4,
+        name: 'maxMembers',
+        description: 'Cantidad máxima de jugadores'
+      },
       // {
       //   type: 4,
       //   name: 'rounds',
       //   description: 'Cantidad de rondas'
       // },
-      // {
-      //   type: 5,
-      //   name: 'spectators',
-      //   description: 'Permitir espectadores'
-      // },
+      {
+        type: 5,
+        name: 'spectators',
+        description: 'Permitir espectadores'
+      },
     ],
     default_permission: true,
     type: 1
@@ -178,7 +177,8 @@ let c = {
         update({
           content: 'No pos, ya no vamo\' a jugar',
           embeds: [],
-          components: []
+          components: [],
+          attachments: []
         }, interaction, res)
       }
     },
@@ -565,7 +565,7 @@ let bg;
 const { sin, cos, floor, min } = Math
 const rad = (d) => (d*Math.PI)/180.0
 
-async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, extra={}) {
+async function menu(title, players, familyFriendly, maxMembers=8, spectators=0, extra={}) {
   const elements = new Image(bg.width, bg.height)
   const offset_x = extra.offset_x ?? 70, offset_y = extra.offset_y ?? 10
   const ref_x = bg.width/2 + offset_x, ref_y = bg.height/2 + offset_y
@@ -586,7 +586,7 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
     const x = ref_radius+ref_x+ref_radius*cos(rad(angle*i+offset_angle))
     const y = ref_y+ref_radius*sin(rad(angle*i+offset_angle))
     elements.drawCircle(floor(x), floor(y), radius, Image.rgbToColor(217, 135, 0))
-    if(avatars[i]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x-radius), floor(y-radius))
+    if(avatars[i] && avatars[i][0]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x)-radius+1, floor(y)-radius+1)
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
   bg.composite(elements)
