@@ -135,7 +135,13 @@ let c = {
         game.players.push((interaction.user?.id ?? interaction.member?.user.id))
         await game.save()
 
-        update(createGameEmbed(game), interaction, res)
+        update({
+          ...createGameEmbed(game),
+          files: [{
+            name: 'menu.png',
+            buffer: await menu(game.name, game.players, game.familyFriendly)
+          }]
+        }, interaction, res)
       }
     },
     {
@@ -150,7 +156,13 @@ let c = {
         game.players = game.players.filter(p => p !== (interaction.user?.id ?? interaction.member?.user.id))
         await game.save()
 
-        update(createGameEmbed(game), interaction, res)
+        update({
+          ...createGameEmbed(game),
+          files: [{
+            name: 'menu.png',
+            buffer: await menu(game.name, game.players, game.familyFriendly)
+          }]
+        }, interaction, res)
       }
     },
     {
@@ -558,7 +570,7 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
   const offset_x = extra.offset_x ?? 70, offset_y = extra.offset_y ?? 10
   const ref_x = bg.width/2 + offset_x, ref_y = bg.height/2 + offset_y
   const ref_radius = extra.ref_radius ?? bg.width/6
-  const angle = 360/maxMembers, offset_angle = extra.offset_angle ?? 90
+  const angle = 360/maxMembers, offset_angle = extra.offset_angle ?? -90
   const radius = floor(min((extra.radius ?? 30), sin(rad(angle/2))*ref_radius))
   const font = fs.readFileSync('./assets/font.ttf')
   const name = await Image.renderText(font, 36, title, Image.rgbToColor(0, 0, 0))
@@ -574,7 +586,7 @@ async function menu(title, players, familyFriendly, spectators=0, maxMembers=8, 
     const x = ref_radius+ref_x+ref_radius*cos(rad(angle*i+offset_angle))
     const y = ref_y+ref_radius*sin(rad(angle*i+offset_angle))
     elements.drawCircle(floor(x), floor(y), radius, Image.rgbToColor(217, 135, 0))
-    if(avatars[i]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-2,  floor(radius*2)-2).cropCircle(), floor(x-radius), floor(y-radius))
+    if(avatars[i]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x-radius), floor(y-radius))
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
   bg.composite(elements)
