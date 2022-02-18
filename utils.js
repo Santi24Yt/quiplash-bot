@@ -1,6 +1,5 @@
 const FormData = require('form-data')
 const c = require('centra')
-const { Readable } = require('stream')
 
 const apiVersion = process.env.DISCORD_API_VERSION || 9
 const base = `https://discord.com/api/v${apiVersion}`
@@ -24,7 +23,7 @@ function reply(reply, interaction, res) {
     })
     let form = new FormData()
     reply.files.forEach((f, i) => {
-      form.append(i, Readable.from(f.buffer), {filename: f.name})
+      form.append(i, Buffer.from(f.buffer), {filename: f.name})
     })
     delete reply.files
     form.append('payload_json', JSON.stringify(reply.data ?? reply))
@@ -56,18 +55,12 @@ async function followUp(message, interaction) {
   {
     let form = new FormData()
     message.files.forEach((f, i) => {
-      form.append(i, Readable.from(f.buffer), {filename: f.name})
+      form.append(i, Buffer.from(f.buffer), {filename: f.name})
     })
     delete message.files
     form.append('payload_json', JSON.stringify(message.data ?? message))
-    let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}`, 'POST')
-      .header(form.getHeaders())
-      .header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`)
-      .body(form)
-      .send()
-    r['rawBody'] = r.body
-    r.body = await r.json()
-    return r
+    form.submit(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}`)
+    return
   }
   let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}`, 'POST')
     .header('Content-Type', 'application/json')
@@ -93,13 +86,17 @@ function update(message, interaction, res) {
   })
   if(message.files?.length)
   {
+    res.status(200).json({
+      type: 6
+    })
     let form = new FormData()
     message.files.forEach((f, i) => {
-      form.append(i, Readable.from(f.buffer), {filename: f.name})
+      form.append(i, Buffer.from(f.buffer), {filename: f.name})
     })
     delete message.files
     form.append('payload_json', JSON.stringify(message.data ?? message))
-    return res.header(form.getHeaders()).send(form)
+    form.submit({method: 'PATCH', host: 'discord.com', path: `/api/v${apiVersion}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/@original`, protocol: 'https:'})
+    return
   }
   res.status(200).json({
     type: 7,
@@ -126,18 +123,12 @@ async function editReply(message, interaction) {
   {
     let form = new FormData()
     message.files.forEach((f, i) => {
-      form.append(i, Readable.from(f.buffer), {filename: f.name})
+      form.append(i, Buffer.from(f.buffer), {filename: f.name})
     })
     delete message.files
     form.append('payload_json', JSON.stringify(message.data ?? message))
-    let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/@original`, 'PATCH')
-      .header(form.getHeaders())
-      .header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`)
-      .body(form)
-      .send()
-    r['rawBody'] = r.body
-    r.body = await r.json()
-    return r
+    form.submit({method: 'PATCH', host: 'discord.com', path: `/api/v${apiVersion}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/@original`, protocol: 'https:'})
+    return
   }
   let r = await c(`${base}/webhooks/${process.env.CLIENT_ID}/${interaction.token}/messages/@original`, 'PATCH')
     .header('Content-Type', 'application/json')
