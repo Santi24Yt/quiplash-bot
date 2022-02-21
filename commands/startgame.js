@@ -641,12 +641,12 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
     for(let i = 0; i < 60; i++)
     {
       let r = 30
-      let f = clone.drawCircle(20+r, floor(clone.height/2), r, Image.rgbToColor(255, 255, 255))
+      clone.drawCircle(20+r, floor(clone.height/2), r, Image.rgbToColor(255, 255, 255))
       let t = await Image.renderText(font, 24, (60-i).toString(), Image.rgbToColor(0, 0 ,0))
-      f.composite(t, 20+r-t.width/2, floor(clone.height/2-t.height/2))
-      frames.push(Frame.from(f, 1000, 0, 0, Frame.DISPOSAL_KEEP))
+      clone.composite(t, floor(20+r-t.width/2), floor(clone.height/2-t.height/2))
+      frames.push(Frame.from(clone, 1000, 0, 0, Frame.DISPOSAL_KEEP))
     }
-    return {name: 'menu.gif', buffer: await new GIF(frames, 0).encode()}
+    return {name: 'menu.gif', buffer: await new GIF(frames, 0).encode(32)}
   }
   return {name: 'menu.png', buffer: await elements.encode()}
 }
