@@ -3,7 +3,7 @@ const GameModel = require('../schemas/game')
 const ReplayModel = require('../schemas/replay')
 const { content: questions } = require('../assets/QuiplashQuestion.json')
 const fs = require('fs')
-const { Image } = require('imagescript')
+const { Image, Frame, GIF } = require('imagescript')
 const centra = require('centra')
 let usersCache = new Map()
 
@@ -66,7 +66,8 @@ let c = {
       maxMembers: Math.abs(interaction.data.options.find(o => o.name == 'max-members')?.value) > 3 ? Math.abs(interaction.data.options.find(o => o.name == 'max-members')?.value) : 8,
       rounds: Math.abs(interaction.data.options.find(o => o.name == 'rounds')?.value) || 1,
       spectatorsEnabled: interaction.data.options.find(o => o.name == 'spectators')?.value ?? false,
-      spectators: []
+      spectators: [],
+      phase: 'lobby'
     }).save()
 
     usersCache.set(interaction.channel_id, new Map())
@@ -78,10 +79,9 @@ let c = {
 
     editReply({
       ...createGameEmbed(game),
-      files: [{
-        name: 'menu.png',
-        buffer: await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators)
-      }]
+      files: [
+        await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators, {phase: game.phase})
+      ]
     }, interaction)
   },
   components: [
@@ -159,10 +159,9 @@ let c = {
 
         update({
           ...createGameEmbed(game),
-          files: [{
-            name: 'menu.png',
-            buffer: await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators)
-          }]
+          files: [
+            await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators, {phase: game.phase})
+          ]
         }, interaction, res)
       }
     },
@@ -183,10 +182,9 @@ let c = {
 
         update({
           ...createGameEmbed(game),
-          files: [{
-            name: 'menu.png',
-            buffer: await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators)
-          }]
+          files: [
+            await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators, {phase: game.phase})
+          ]
         }, interaction, res)
       }
     },
@@ -621,11 +619,29 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
     }
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
-  const rulesTitle = await Image.renderText(font, 24, 'Rules', Image.rgbToColor(0, 0 ,0))
-  const rules = await Image.renderText(font, 20, `  Family Friendly: ${familyFriendly}\n${Object.entries(extra).map(e => `  ${e[0]}: ${e[1]}`).join('\n')}`, Image.rgbToColor(0, 0 ,0))
   const spectatorsN = await Image.renderText(font, 14, `Spectators: ${spectators}`, Image.rgbToColor(0, 0 ,0))
   elements.composite(spectatorsN, 20, bg.height-20)
-  elements.composite(rulesTitle, 20, 40)
-  elements.composite(rules, 20, 40+rulesTitle.height)
-  return elements.encode()
+  if(extra.phase == 'lobby')
+  {
+    const rulesTitle = await Image.renderText(font, 24, 'Reglas', Image.rgbToColor(0, 0 ,0))
+    const rules = await Image.renderText(font, 20, `  Family Friendly: ${familyFriendly}\n${Object.entries(extra).map(e => `  ${e[0]}: ${e[1]}`).join('\n')}`, Image.rgbToColor(0, 0 ,0))
+    elements.composite(rulesTitle, 20, 40)
+    elements.composite(rules, 20, 40+rulesTitle.height)
+  }
+  if(extra.phase == 'answers')
+  {
+    const answersTitle = await Image.renderText(font, 24, 'Responde a las preguntas', Image.rgbToColor(0, 0 ,0))
+    elements.composite(answersTitle, 20, 40)
+    let frames = []
+    for(let i = 0; i < 60; i++)
+    {
+      let r = 60
+      let f = elements.clone().drawCircle(20+r, floor(bg.height/2), r, Image.rgbToColor(255, 255, 255))
+      let t = await Image.renderText(font, 24, (60-i).toString(), Image.rgbToColor(0, 0 ,0))
+      f.composite(t, 20+r-t.width/2, floor(bg.height/2-t.height/2))
+      frames.push(Frame.from(f, 1000))
+    }
+    return {name: 'menu.gif', buffer: await new GIF(frames, 0).encode(8)}
+  }
+  return {name: 'menu.png', buffer: await elements.encode()}
 }
