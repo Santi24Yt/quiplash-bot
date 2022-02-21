@@ -60,7 +60,11 @@ let c = {
       _id: interaction.channel_id,
       name: interaction.data.options.find(o => o.name == 'name').value,
       players: [user_id],
-      familyFriendly: false
+      familyFriendly: interaction.data.options.find(o => o.name == 'family-friendly').value,
+      maxMembers: interaction.data.options.find(o => o.name == 'max-members').value,
+      rounds: interaction.data.options.find(o => o.name == 'rounds').value,
+      spectatorsEnabled: interaction.data.options.find(o => o.name == 'spectators').value,
+      spectators: []
     }).save()
 
     avatarsCache.set(interaction.channel_id, new Map())
@@ -74,7 +78,7 @@ let c = {
       ...createGameEmbed(game),
       files: [{
         name: 'menu.png',
-        buffer: await menu(interaction, game.name, game.players, game.familyFriendly)
+        buffer: await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators)
       }]
     }, interaction, res)
   },
@@ -154,7 +158,7 @@ let c = {
           ...createGameEmbed(game),
           files: [{
             name: 'menu.png',
-            buffer: await menu(interaction, game.name, game.players, game.familyFriendly)
+            buffer: await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators)
           }]
         }, interaction, res)
       }
@@ -178,7 +182,7 @@ let c = {
           ...createGameEmbed(game),
           files: [{
             name: 'menu.png',
-            buffer: await menu(interaction, game.name, game.players, game.familyFriendly)
+            buffer: await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators)
           }]
         }, interaction, res)
       }
@@ -610,6 +614,8 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
   elements.composite(name, bg.width/2-name.width/2, -5)
   const rulesTitle = await Image.renderText(font, 24, 'Rules', Image.rgbToColor(0, 0 ,0))
   const rules = await Image.renderText(font, 20, `  Family Friendly: ${familyFriendly}\n${Object.entries(extra).map(e => `  ${e[0]}: ${e[1]}`).join('\n')}`, Image.rgbToColor(0, 0 ,0))
+  const spectatorsN = await Image.renderText(font, 14, `Spectators: ${spectators}`, Image.rgbToColor(0, 0 ,0))
+  elements.composite(spectatorsN, 20, bg.height-20)
   elements.composite(rulesTitle, 20, 40)
   elements.composite(rules, 20, 40+rulesTitle.height)
   bg.composite(elements)
