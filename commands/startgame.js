@@ -31,11 +31,11 @@ let c = {
         name: 'maxMembers',
         description: 'Cantidad máxima de jugadores'
       },
-      // {
-      //   type: 4,
-      //   name: 'rounds',
-      //   description: 'Cantidad de rondas'
-      // },
+      {
+        type: 4,
+        name: 'rounds',
+        description: 'Cantidad de rondas'
+      },
       {
         type: 5,
         name: 'spectators',
@@ -610,8 +610,8 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
   elements.composite(name, bg.width/2-name.width/2, -5)
   const rulesTitle = await Image.renderText(font, 24, 'Rules', Image.rgbToColor(0, 0 ,0))
   const rules = await Image.renderText(font, 20, `  Family Friendly: ${familyFriendly}\n${Object.entries(extra).map(e => `  ${e[0]}: ${e[1]}`).join('\n')}`, Image.rgbToColor(0, 0 ,0))
-  elements.composite(rulesTitle, 20, bg.height/2-rules.height-30)
-  elements.composite(rules, 20, bg.height/2-rules.height+rulesTitle.height-30)
+  elements.composite(rulesTitle, 20, 40)
+  elements.composite(rules, 20, 40+rulesTitle.height)
   bg.composite(elements)
   return bg.encode()
 }
