@@ -584,6 +584,10 @@ async function menu(title, players, familyFriendly, maxMembers=8, spectators=0, 
     if(avatars[i] && avatars[i][0]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x)-radius+1, floor(y)-radius+1)
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
+  const rulesTitle = await Image.renderText(fs.readFileSync('./assets/font.ttf'), 24, 'Rules', Image.rgbToColor(0, 0 ,0))
+  const rules = await Image.renderText(fs.readFileSync('./assets/font.ttf'), 20, `  Family Friendly: ${familyFriendly}\n${Object.entries(extra).map(e => `  ${e[0]}: ${e[1]}`).join('\n')}`, Image.rgbToColor(0, 0 ,0))
+  elements.composite(rulesTitle, 20, bg.height/2-rules.height-30)
+  elements.composite(rules, 20, bg.height/2-rules.height+rulesTitle.height-30)
   bg.composite(elements)
   return bg.encode()
 }
