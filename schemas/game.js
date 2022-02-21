@@ -5,7 +5,7 @@ module.exports = mongoose.model('game', new mongoose.Schema({
   name: String,
   players: [String],
   familyFriendly: Boolean,
-  maxPlayers: Number,
+  maxMembers: Number,
   rounds: Number,
   spectatorsEnabled: Boolean,
   spectators: [String],
