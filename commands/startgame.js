@@ -5,7 +5,7 @@ const { content: questions } = require('../assets/QuiplashQuestion.json')
 const fs = require('fs')
 const { Image } = require('imagescript')
 const centra = require('centra')
-let avatarsCache = new Map()
+let usersCache = new Map()
 
 /**
  * @typedef {import('../typings').Command}
@@ -69,11 +69,11 @@ let c = {
       spectators: []
     }).save()
 
-    avatarsCache.set(interaction.channel_id, new Map())
+    usersCache.set(interaction.channel_id, new Map())
     let avatar = (interaction.user ?? interaction.member).avatar || interaction.member?.user.avatar
     if(avatar && user_id)
     {
-      avatarsCache.get(interaction.channel_id).set(user_id, avatar)
+      usersCache.get(interaction.channel_id).set(user_id, {avatar: avatar, avatar_url: `https://cdn.discordapp.com/avatars/${user_id}/${avatar}.png?size=64` , name: interaction.member?.nick ?? interaction.user?.username ?? interaction.member?.user.username})
     }
 
     editReply({
@@ -153,7 +153,7 @@ let c = {
         let avatar = (interaction.user ?? interaction.member).avatar || interaction.member?.user.avatar
         if(avatar && user_id)
         {
-          avatarsCache.get(interaction.channel_id).set(user_id, avatar)
+          usersCache.get(interaction.channel_id).set(user_id, {avatar: avatar, avatar_url: `https://cdn.discordapp.com/avatars/${user_id}/${avatar}.png?size=64` , name: interaction.member?.nick ?? interaction.user?.username ?? interaction.member?.user.username})
         }
 
         update({
@@ -178,7 +178,7 @@ let c = {
         game.players = game.players.filter(p => p !== user_id)
         await game.save()
 
-        avatarsCache.get(interaction.channel_id).delete(user_id)
+        usersCache.get(interaction.channel_id).delete(user_id)
 
         update({
           ...createGameEmbed(game),
@@ -200,7 +200,7 @@ let c = {
         if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el anfitrión de la partida puede terminar el juego', flags: 1 << 6 }, interaction, res)
         await GameModel.deleteOne({ _id: interaction.channel_id })
         
-        avatarsCache.delete(interaction.channel_id)
+        usersCache.delete(interaction.channel_id)
 
         update({
           content: 'No pos, ya no vamo\' a jugar',
@@ -602,8 +602,8 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
   const avatars = []
   for(const player of players)
   {
-    const avatar = avatarsCache.get(interaction.channel_id).get(player)
-    if(avatar) avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${player}/${avatar}.png?size=64`).send()).body)
+    const avatar = usersCache.get(interaction.channel_id).get(player)?.avatar
+    avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${player}/${avatar}.png?size=64`).send()).body)
   }
   elements.composite(bg)
   for(let i = 0; i < maxMembers; i++)
@@ -612,6 +612,12 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
     const y = ref_y+ref_radius*sin(rad(angle*i+offset_angle))
     elements.drawCircle(floor(x), floor(y), radius, Image.rgbToColor(217, 135, 0))
     if(avatars[i] && avatars[i][0]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x)-radius+1, floor(y)-radius+1)
+    if(maxMembers <= 8)
+    {
+      const username = usersCache.get(interaction.channel_id).get(players[i])?.username
+      let userText = await Image.renderText(font, 8, username || 'Player '+i, Image.rgbToColor(0, 0, 0))
+      elements.composite(userText, floor(x-userText.width/2), floor(y+radius))
+    }
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
   const rulesTitle = await Image.renderText(font, 24, 'Rules', Image.rgbToColor(0, 0 ,0))
@@ -620,6 +626,5 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
   elements.composite(spectatorsN, 20, bg.height-20)
   elements.composite(rulesTitle, 20, 40)
   elements.composite(rules, 20, 40+rulesTitle.height)
-  bg.composite(elements)
-  return bg.encode()
+  return elements.encode()
 }
