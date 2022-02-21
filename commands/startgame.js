@@ -23,12 +23,12 @@ let c = {
       },
       {
         type: 5,
-        name: 'familyFriendly',
+        name: 'family-friendly',
         description: 'Contenido apto para toda la familia'
       },
       {
         type: 4,
-        name: 'maxMembers',
+        name: 'max-members',
         description: 'Cantidad máxima de jugadores'
       },
       {
