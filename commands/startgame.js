@@ -637,15 +637,16 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
     const answersTitle = await Image.renderText(font, 24, 'Responde a las preguntas', Image.rgbToColor(0, 0 ,0))
     elements.composite(answersTitle, 20, 40)
     let frames = []
+    let clone = elements.clone()
     for(let i = 0; i < 60; i++)
     {
       let r = 60
-      let f = elements.clone().drawCircle(20+r, floor(bg.height/2), r, Image.rgbToColor(255, 255, 255))
+      let f = clone.drawCircle(20+r, floor(bg.height/2), r, Image.rgbToColor(255, 255, 255))
       let t = await Image.renderText(font, 24, (60-i).toString(), Image.rgbToColor(0, 0 ,0))
       f.composite(t, 20+r-t.width/2, floor(bg.height/2-t.height/2))
       frames.push(Frame.from(f, 1000))
     }
-    return {name: 'menu.gif', buffer: await new GIF(frames, 0).encode(8)}
+    return {name: 'menu.gif', buffer: await new GIF(frames, 0).encode()}
   }
   return {name: 'menu.png', buffer: await elements.encode()}
 }
