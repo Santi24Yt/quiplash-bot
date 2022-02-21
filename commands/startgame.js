@@ -60,10 +60,10 @@ let c = {
       _id: interaction.channel_id,
       name: interaction.data.options.find(o => o.name == 'name').value,
       players: [user_id],
-      familyFriendly: interaction.data.options.find(o => o.name == 'family-friendly').value,
-      maxMembers: interaction.data.options.find(o => o.name == 'max-members').value,
-      rounds: interaction.data.options.find(o => o.name == 'rounds').value,
-      spectatorsEnabled: interaction.data.options.find(o => o.name == 'spectators').value,
+      familyFriendly: interaction.data.options.find(o => o.name == 'family-friendly')?.value ?? false,
+      maxMembers: interaction.data.options.find(o => o.name == 'max-members')?.value ?? 8,
+      rounds: interaction.data.options.find(o => o.name == 'rounds')?.value ?? 1,
+      spectatorsEnabled: interaction.data.options.find(o => o.name == 'spectators')?.value ?? false,
       spectators: []
     }).save()
 
