@@ -147,9 +147,14 @@ function modal(modal, interaction, res) {
   })
 }
 
-function deferMsg(res) {
+/**
+ * 
+ * @param {import('express').Response} res
+ * @param {5|6} [type=5]
+ */
+function deferMsg(res, type=5) {
   res.status(200).json({
-    type: 5
+    type: type
   })
 }
 

@@ -99,7 +99,8 @@ let c = {
         genQuestions(game)
         await game.save()
         let t = 80 * 1000
-        update({
+        deferMsg(res, 6)
+        editReply({
           ...createGameEmbed(game),
           content: 'Responde a las preguntas\nTiempo restante: <t:' + Math.floor((Date.now() + t) / 1000) + ':R>',
           components: [
@@ -114,8 +115,11 @@ let c = {
                 }
               ]
             }
+          ],
+          files: [
+            await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators, {phase: game.phase})
           ]
-        }, interaction, res)
+        }, interaction)
         let m = await followUp('Iniciando juego', interaction)
         setTimeout(() => deleteMsg(m.body, interaction), 5000)
         for (let i = 5; i >= 0; i--) {
