@@ -63,8 +63,8 @@ let c = {
       name: interaction.data.options.find(o => o.name == 'name').value,
       players: [user_id],
       familyFriendly: interaction.data.options.find(o => o.name == 'family-friendly')?.value ?? false,
-      maxMembers: interaction.data.options.find(o => o.name == 'max-members')?.value ?? 8,
-      rounds: interaction.data.options.find(o => o.name == 'rounds')?.value ?? 1,
+      maxMembers: Math.abs(interaction.data.options.find(o => o.name == 'max-members')?.value) > 3 ? Math.abs(interaction.data.options.find(o => o.name == 'max-members')?.value) : 8,
+      rounds: Math.abs(interaction.data.options.find(o => o.name == 'rounds')?.value) || 1,
       spectatorsEnabled: interaction.data.options.find(o => o.name == 'spectators')?.value ?? false,
       spectators: []
     }).save()
