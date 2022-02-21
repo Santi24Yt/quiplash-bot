@@ -147,6 +147,7 @@ let c = {
         const game = await GameModel.findById(interaction.channel_id)
         let user_id = interaction.user?.id ?? interaction.member?.user.id
         if (game.players.includes(user_id)) return reply({ content: 'Ya estas participando en la partida', flags: 1 << 6 }, interaction, res)
+        if (game.maxMembers <= game.players.length) return reply({ content: 'La partida ya está llena', flags: 1 << 6 }, interaction, res)
         game.players.push(user_id)
         await game.save()
 
@@ -367,16 +368,16 @@ module.exports = c
 function createGameEmbed(game) {
   return {
     content: `Esperando a más jugadores...\n${game.players.map(p => `<@${p}>`).join('')}`,
-    embeds: [
-      {
-        type: 'rich',
-        color: parseInt(0x0f5c842.toString()),
-        author: {
-          name: game.name
-        },
-        description: `Jugadores:\n${game.players.map(p => `> - <@${p}>`).join('\n')}`
-      }
-    ],
+    // embeds: [
+    //   {
+    //     type: 'rich',
+    //     color: parseInt(0x0f5c842.toString()),
+    //     author: {
+    //       name: game.name
+    //     },
+    //     description: `Jugadores:\n${game.players.map(p => `> - <@${p}>`).join('\n')}`
+    //   }
+    // ],
     components: [
       {
         type: 1,
@@ -614,7 +615,7 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
     if(avatars[i] && avatars[i][0]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x)-radius+1, floor(y)-radius+1)
     if(maxMembers <= 8)
     {
-      const username = usersCache.get(interaction.channel_id).get(players[i])?.username
+      const username = usersCache.get(interaction.channel_id).get(players[i])?.name
       let userText = await Image.renderText(font, 8, username || 'Player '+i, Image.rgbToColor(0, 0, 0))
       elements.composite(userText, floor(x-userText.width/2), floor(y+radius))
     }
