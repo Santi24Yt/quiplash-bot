@@ -52,14 +52,14 @@ let c = {
   async execute(interaction, res) {
     if (!interaction.member) return reply('Los comandos del bot solo se pueden usar en servidores. 🥑', interaction, res)
 
-    let game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id)).lean()
+    let game = await GameModel.findById(interaction.channel_id).lean()
     if (game) return reply({ content: 'Ya hay un juego en curso', flags: 1 << 6 }, interaction, res)
 
     deferMsg(res)
 
     let user_id = interaction.user?.id ?? interaction.member?.user.id
     game = await new GameModel({
-      _id: (interaction.channel_id || interaction.message.channel_id),
+      _id: interaction.channel_id,
       name: interaction.data.options.find(o => o.name == 'name').value,
       players: [user_id],
       familyFriendly: interaction.data.options.find(o => o.name == 'family-friendly')?.value ?? false,
@@ -70,11 +70,11 @@ let c = {
       phase: 'lobby'
     }).save()
 
-    usersCache.set((interaction.channel_id || interaction.message.channel_id), new Map())
+    usersCache.set(interaction.channel_id, new Map())
     let avatar = (interaction.user ?? interaction.member).avatar || interaction.member?.user.avatar
     if(avatar && user_id)
     {
-      usersCache.get((interaction.channel_id || interaction.message.channel_id)).set(user_id, {avatar: avatar, avatar_url: `https://cdn.discordapp.com/avatars/${user_id}/${avatar}.png?size=64` , name: interaction.member?.nick ?? interaction.user?.username ?? interaction.member?.user.username})
+      usersCache.get(interaction.channel_id).set(user_id, {avatar: avatar, avatar_url: `https://cdn.discordapp.com/avatars/${user_id}/${avatar}.png?size=64` , name: interaction.member?.nick ?? interaction.user?.username ?? interaction.member?.user.username})
     }
 
     editReply({
@@ -92,7 +92,7 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el anfitrión de la partida puede iniciar el juego', flags: 1 << 6 }, interaction, res)
         if (game.players.length < 3) return reply({ content: 'Debe haber mínimo 3 jugadores para iniciar', flags: 1 << 6 }, interaction, res)
         game.phase = 'answers'
@@ -148,7 +148,7 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         let user_id = interaction.user?.id ?? interaction.member?.user.id
         if (game.players.includes(user_id)) return reply({ content: 'Ya estas participando en la partida', flags: 1 << 6 }, interaction, res)
         if (game.maxMembers <= game.players.length) return reply({ content: 'La partida ya está llena', flags: 1 << 6 }, interaction, res)
@@ -158,7 +158,7 @@ let c = {
         let avatar = (interaction.user ?? interaction.member).avatar || interaction.member?.user.avatar
         if(avatar && user_id)
         {
-          usersCache.get((interaction.channel_id || interaction.message.channel_id)).set(user_id, {avatar: avatar, avatar_url: `https://cdn.discordapp.com/avatars/${user_id}/${avatar}.png?size=64` , name: interaction.member?.nick ?? interaction.user?.username ?? interaction.member?.user.username})
+          usersCache.get(interaction.channel_id).set(user_id, {avatar: avatar, avatar_url: `https://cdn.discordapp.com/avatars/${user_id}/${avatar}.png?size=64` , name: interaction.member?.nick ?? interaction.user?.username ?? interaction.member?.user.username})
         }
 
         update({
@@ -176,13 +176,13 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         let user_id = interaction.user?.id ?? interaction.member?.user.id
         if (!game.players.includes(user_id)) return reply({ content: 'No estas participando en la partida', flags: 1 << 6 }, interaction, res)
         game.players = game.players.filter(p => p !== user_id)
         await game.save()
 
-        usersCache.get((interaction.channel_id || interaction.message.channel_id)).delete(user_id)
+        usersCache.get(interaction.channel_id).delete(user_id)
 
         update({
           ...createGameEmbed(game),
@@ -199,11 +199,11 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el anfitrión de la partida puede terminar el juego', flags: 1 << 6 }, interaction, res)
-        await GameModel.deleteOne({ _id: (interaction.channel_id || interaction.message.channel_id) })
+        await GameModel.deleteOne({ _id: interaction.channel_id })
         
-        usersCache.delete((interaction.channel_id || interaction.message.channel_id))
+        usersCache.delete(interaction.channel_id)
 
         update({
           content: 'No pos, ya no vamo\' a jugar',
@@ -220,7 +220,7 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', flags: 1 << 6 }, interaction, res)
         const question = game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
         if (question) {
@@ -256,7 +256,7 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', flags: 1 << 6 }, interaction, res)
         let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
         if (q?.votes.find(v => v.user == (interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya votaste', flags: 1 << 6 }, interaction, res)
@@ -277,7 +277,7 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en esta partida', flags: 1 << 6 }, interaction, res)
         let q = game.questions.find(q => q.prompt == interaction.message.embeds[0].description)
         if (q?.votes.find(v => v.user == (interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya votaste', flags: 1 << 6 }, interaction, res)
@@ -298,7 +298,7 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         if(!game) return reply({ content: 'No hay un juego activo en este canal', flags: 1 << 6 }, interaction, res)
         if(game.phase !== 'answers') return reply({content: 'Te tardaste demasiado, las ya no puedes responder a las preguntas', flags: 1 << 6}, interaction, res)
         const question = game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
@@ -335,7 +335,7 @@ let c = {
       * @param {import('express').Response} res
       * */
       async execute(interaction, res) {
-        const game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+        const game = await GameModel.findById(interaction.channel_id)
         if(!game) return reply({ content: 'No hay un juego activo en este canal', flags: 1 << 6 }, interaction, res)
         if(game.phase !== 'answers') return reply({content: 'Te tardaste demasiado, las ya no puedes responder a las preguntas', flags: 1 << 6}, interaction, res)
         const question = game.questions.find(q => q.users.includes((interaction.user?.id ?? interaction.member?.user.id)) && !q.answers.find(a => a.user == (interaction.user?.id ?? interaction.member?.user.id)))
@@ -538,12 +538,12 @@ function votingPhase(interaction, game) {
         game.phase = 'ended'
         new ReplayModel({ ...game._doc, _id: interaction.message.id }).save()
         game.deleteOne()
-        GameModel.deleteOne({ _id: (interaction.channel_id || interaction.message.channel_id) })
+        GameModel.deleteOne({ _id: interaction.channel_id })
       }, i * 30 * 1000)
       return 'xd'
     }
     setTimeout(async () => {
-      game = await GameModel.findById((interaction.channel_id || interaction.message.channel_id))
+      game = await GameModel.findById(interaction.channel_id)
       editReply({
         content: 'Fase de votación, vota por la frase que te parezca más graciosa',
         embeds: [createVoteEmbed(game, game.questions[Math.floor(i / 2)], i % 2 == 1)],
@@ -605,7 +605,7 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
   const avatars = []
   for(const player of players)
   {
-    const avatar = usersCache.get((interaction.channel_id || interaction.message.channel_id)).get(player)?.avatar
+    const avatar = usersCache.get(interaction.channel_id).get(player)?.avatar
     avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${player}/${avatar}.png?size=64`).send()).body)
   }
   elements.composite(bg)
@@ -617,7 +617,7 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
     if(avatars[i] && avatars[i][0]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x)-radius+1, floor(y)-radius+1)
     if(maxMembers <= 8)
     {
-      const username = usersCache.get((interaction.channel_id || interaction.message.channel_id)).get(players[i])?.name
+      const username = usersCache.get(interaction.channel_id).get(players[i])?.name
       let userText = await Image.renderText(font, 8, username || 'Player '+i, Image.rgbToColor(0, 0, 0))
       elements.composite(userText, floor(x-userText.width/2), floor(y+radius))
     }
@@ -637,14 +637,14 @@ async function menu(interaction, title, players, familyFriendly, maxMembers=8, s
     const answersTitle = await Image.renderText(font, 24, 'Responde a las preguntas', Image.rgbToColor(0, 0 ,0))
     elements.composite(answersTitle, 20, 40)
     let frames = []
-    let clone = elements.clone()
+    let clone = elements.clone().resize(314, 158)
     for(let i = 0; i < 60; i++)
     {
-      let r = 60
-      let f = clone.drawCircle(20+r, floor(bg.height/2), r, Image.rgbToColor(255, 255, 255))
+      let r = 30
+      let f = clone.drawCircle(20+r, floor(clone.height/2), r, Image.rgbToColor(255, 255, 255))
       let t = await Image.renderText(font, 24, (60-i).toString(), Image.rgbToColor(0, 0 ,0))
-      f.composite(t, 20+r-t.width/2, floor(bg.height/2-t.height/2))
-      frames.push(Frame.from(f, 1000))
+      f.composite(t, 20+r-t.width/2, floor(clone.height/2-t.height/2))
+      frames.push(Frame.from(f, 1000, 0, 0, Frame.DISPOSAL_KEEP))
     }
     return {name: 'menu.gif', buffer: await new GIF(frames, 0).encode()}
   }
