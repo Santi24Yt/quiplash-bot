@@ -5,6 +5,7 @@ const { content: questions } = require('../assets/QuiplashQuestion.json')
 const fs = require('fs')
 const { Image } = require('imagescript')
 const centra = require('centra')
+let avatarsCache = new Map()
 
 /**
  * @typedef {import('../typings').Command}
@@ -54,18 +55,26 @@ let c = {
     let game = await GameModel.findById(interaction.channel_id).lean()
     if (game) return reply({ content: 'Ya hay un juego en curso', flags: 1 << 6 }, interaction, res)
 
+    let user_id = interaction.user?.id ?? interaction.member?.user.id
     game = await new GameModel({
       _id: interaction.channel_id,
       name: interaction.data.options.find(o => o.name == 'name').value,
-      players: [(interaction.user?.id ?? interaction.member?.user.id)],
+      players: [user_id],
       familyFriendly: false
     }).save()
+
+    avatarsCache.set(interaction.channel_id, new Map())
+    let avatar = (interaction.user ?? interaction.member).avatar || interaction.member?.user.avatar
+    if(avatar && user_id)
+    {
+      avatarsCache.get(interaction.channel_id).set(user_id, avatar)
+    }
 
     reply({
       ...createGameEmbed(game),
       files: [{
         name: 'menu.png',
-        buffer: await menu(game.name, game.players, game.familyFriendly)
+        buffer: await menu(interaction, game.name, game.players, game.familyFriendly)
       }]
     }, interaction, res)
   },
@@ -130,15 +139,22 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'Ya estas participando en la partida', flags: 1 << 6 }, interaction, res)
-        game.players.push((interaction.user?.id ?? interaction.member?.user.id))
+        let user_id = interaction.user?.id ?? interaction.member?.user.id
+        if (game.players.includes(user_id)) return reply({ content: 'Ya estas participando en la partida', flags: 1 << 6 }, interaction, res)
+        game.players.push(user_id)
         await game.save()
+
+        let avatar = (interaction.user ?? interaction.member).avatar || interaction.member?.user.avatar
+        if(avatar && user_id)
+        {
+          avatarsCache.get(interaction.channel_id).set(user_id, avatar)
+        }
 
         update({
           ...createGameEmbed(game),
           files: [{
             name: 'menu.png',
-            buffer: await menu(game.name, game.players, game.familyFriendly)
+            buffer: await menu(interaction, game.name, game.players, game.familyFriendly)
           }]
         }, interaction, res)
       }
@@ -151,15 +167,18 @@ let c = {
       * */
       async execute(interaction, res) {
         const game = await GameModel.findById(interaction.channel_id)
-        if (!game.players.includes((interaction.user?.id ?? interaction.member?.user.id))) return reply({ content: 'No estas participando en la partida', flags: 1 << 6 }, interaction, res)
-        game.players = game.players.filter(p => p !== (interaction.user?.id ?? interaction.member?.user.id))
+        let user_id = interaction.user?.id ?? interaction.member?.user.id
+        if (!game.players.includes(user_id)) return reply({ content: 'No estas participando en la partida', flags: 1 << 6 }, interaction, res)
+        game.players = game.players.filter(p => p !== user_id)
         await game.save()
+
+        avatarsCache.get(interaction.channel_id).delete(user_id)
 
         update({
           ...createGameEmbed(game),
           files: [{
             name: 'menu.png',
-            buffer: await menu(game.name, game.players, game.familyFriendly)
+            buffer: await menu(interaction, game.name, game.players, game.familyFriendly)
           }]
         }, interaction, res)
       }
@@ -174,6 +193,9 @@ let c = {
         const game = await GameModel.findById(interaction.channel_id)
         if (game.players[0] !== (interaction.user?.id ?? interaction.member?.user.id)) return reply({ content: 'Solo el anfitrión de la partida puede terminar el juego', flags: 1 << 6 }, interaction, res)
         await GameModel.deleteOne({ _id: interaction.channel_id })
+        
+        avatarsCache.delete(interaction.channel_id)
+
         update({
           content: 'No pos, ya no vamo\' a jugar',
           embeds: [],
@@ -338,7 +360,7 @@ module.exports = c
 
 function createGameEmbed(game) {
   return {
-    content: 'Esperando a más jugadores...',
+    content: `Esperando a más jugadores...\n${game.players.map(p => `<@${p}>`).join('')}`,
     embeds: [
       {
         type: 'rich',
@@ -555,12 +577,14 @@ function votingPhase(interaction, game) {
 }
 
 let bgRaw = fs.readFileSync('./assets/bg.jpeg')
+/** @type {Image} */
+let bg;
+(async () => bg = await Image.decode(bgRaw))()
 
 const { sin, cos, floor, min } = Math
 const rad = (d) => (d*Math.PI)/180.0
 
-async function menu(title, players, familyFriendly, maxMembers=8, spectators=0, extra={}) {
-  const bg = await Image.decode(bgRaw)
+async function menu(interaction, title, players, familyFriendly, maxMembers=8, spectators=0, extra={}) {
   const elements = new Image(bg.width, bg.height)
   const offset_x = extra.offset_x ?? 70, offset_y = extra.offset_y ?? 10
   const ref_x = bg.width/2 + offset_x, ref_y = bg.height/2 + offset_y
@@ -572,10 +596,10 @@ async function menu(title, players, familyFriendly, maxMembers=8, spectators=0, 
   const avatars = []
   for(const player of players)
   {
-    const r = await centra(`https://discord.com/api/v9/users/${player}`).header('Authorization', `Bot ${process.env.DISCORD_TOKEN}`).send()
-    const user = await r.json()
-    avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`).send()).body)
+    const avatar = avatarsCache.get(interaction.channel_id).get(player)
+    if(avatar) avatars.push( (await centra(`https://cdn.discordapp.com/avatars/${player}/${avatar}.png?size=64`).send()).body)
   }
+  elements.composite(bg)
   for(let i = 0; i < maxMembers; i++)
   {
     const x = ref_radius+ref_x+ref_radius*cos(rad(angle*i+offset_angle))
@@ -584,8 +608,8 @@ async function menu(title, players, familyFriendly, maxMembers=8, spectators=0, 
     if(avatars[i] && avatars[i][0]) elements.composite((await Image.decode(avatars[i])).resize(floor(radius*2)-4,  floor(radius*2)-4).cropCircle(), floor(x)-radius+1, floor(y)-radius+1)
   }
   elements.composite(name, bg.width/2-name.width/2, -5)
-  const rulesTitle = await Image.renderText(fs.readFileSync('./assets/font.ttf'), 24, 'Rules', Image.rgbToColor(0, 0 ,0))
-  const rules = await Image.renderText(fs.readFileSync('./assets/font.ttf'), 20, `  Family Friendly: ${familyFriendly}\n${Object.entries(extra).map(e => `  ${e[0]}: ${e[1]}`).join('\n')}`, Image.rgbToColor(0, 0 ,0))
+  const rulesTitle = await Image.renderText(font, 24, 'Rules', Image.rgbToColor(0, 0 ,0))
+  const rules = await Image.renderText(font, 20, `  Family Friendly: ${familyFriendly}\n${Object.entries(extra).map(e => `  ${e[0]}: ${e[1]}`).join('\n')}`, Image.rgbToColor(0, 0 ,0))
   elements.composite(rulesTitle, 20, bg.height/2-rules.height-30)
   elements.composite(rules, 20, bg.height/2-rules.height+rulesTitle.height-30)
   bg.composite(elements)
