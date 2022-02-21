@@ -147,6 +147,12 @@ function modal(modal, interaction, res) {
   })
 }
 
+function deferMsg(res) {
+  res.status(200).json({
+    type: 5
+  })
+}
+
 /**
  * @param {any} message
  * @param {import('discord-api-types').APIBaseInteraction} interaction
@@ -170,5 +176,6 @@ module.exports = {
   deleteMsg,
   update,
   editReply,
-  modal
+  modal,
+  deferMsg
 }

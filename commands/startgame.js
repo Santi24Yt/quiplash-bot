@@ -1,4 +1,4 @@
-const { reply, followUp, deleteMsg, update, editReply, modal } = require('../utils')
+const { reply, followUp, deleteMsg, update, editReply, modal, deferMsg } = require('../utils')
 const GameModel = require('../schemas/game')
 const ReplayModel = require('../schemas/replay')
 const { content: questions } = require('../assets/QuiplashQuestion.json')
@@ -55,6 +55,8 @@ let c = {
     let game = await GameModel.findById(interaction.channel_id).lean()
     if (game) return reply({ content: 'Ya hay un juego en curso', flags: 1 << 6 }, interaction, res)
 
+    deferMsg(res)
+
     let user_id = interaction.user?.id ?? interaction.member?.user.id
     game = await new GameModel({
       _id: interaction.channel_id,
@@ -74,13 +76,13 @@ let c = {
       avatarsCache.get(interaction.channel_id).set(user_id, avatar)
     }
 
-    reply({
+    editReply({
       ...createGameEmbed(game),
       files: [{
         name: 'menu.png',
         buffer: await menu(interaction, game.name, game.players, game.familyFriendly, game.maxMembers, game.spectators)
       }]
-    }, interaction, res)
+    }, interaction)
   },
   components: [
     {
